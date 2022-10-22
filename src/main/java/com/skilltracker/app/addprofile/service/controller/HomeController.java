@@ -4,7 +4,6 @@ import com.skilltracker.app.addprofile.service.dto.SkillRequest;
 import com.skilltracker.app.addprofile.service.entity.User;
 import com.skilltracker.app.addprofile.service.exception.AddProfileException;
 import com.skilltracker.app.addprofile.service.model.JwtRequest;
-import com.skilltracker.app.addprofile.service.model.JwtResponse;
 import com.skilltracker.app.addprofile.service.repository.UserProfileRepository;
 import com.skilltracker.app.addprofile.service.responses.LoginResponse;
 import com.skilltracker.app.addprofile.service.responses.UserSearchResponse;
@@ -26,6 +25,15 @@ import javax.jms.JMSException;
 import javax.jms.Message;
 import javax.jms.Queue;
 import javax.validation.Valid;
+import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.List;
+import com.azure.messaging.servicebus.*;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -59,6 +67,9 @@ public class HomeController {
  @Autowired
  private UserProfileRepository userProfileRepository;
 
+ static String connectionString = "Endpoint=sb://kashmora.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=oOp2OQwsep/gLN6f6p0buYNBcYOZtY5gGJmKGR0lkpg=";
+ static String queueName = "rajmachawal";
+
  @PostMapping("/skill-tracker/api/v1/engineer/add-profile")
  @ApiOperation(value = "This method is used to Post users.")
  public User saveUserProfile(@RequestBody @Valid SkillRequest request) {
@@ -78,13 +89,36 @@ public class HomeController {
  public String updateUserById(@PathVariable Long userId,
                             @RequestBody String jsonBody) {
    log.info("Tracing HomeController:updateUserById method and passing message to ActiveMQ");
-   jmsTemplate.convertAndSend(queue, jsonBody, new MessagePostProcessor() {
+   ServiceBusSenderClient senderClient = new ServiceBusClientBuilder()
+          .connectionString(connectionString)
+          .sender()
+          .queueName(queueName)
+          .buildClient();
+
+  // send one message to the queue
+
+  ServiceBusMessage message = new ServiceBusMessage(jsonBody);
+  message.setCorrelationId(userId.toString());
+  senderClient.sendMessage(message);
+  System.out.println("Sent a single message to the queue: " + queueName);
+  try {
+   //URL url = new URL("http://localhost:8086/skill-tracker/api/v1/engineer/postMessage");
+   URL url = new URL("http://updateprofiler.g4gzffaxhyftemfq.australiaeast.azurecontainer.io:8086/skill-tracker/api/v1/engineer/postMessage");
+   HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+   conn.setRequestMethod("GET");
+   conn.connect();
+   System.out.println("Connected...."+conn.getResponseCode());
+  } catch(Exception e) {
+   e.printStackTrace();
+  }
+  //receiveMessages();
+  /*jmsTemplate.convertAndSend(queue, jsonBody, new MessagePostProcessor() {
    @Override
    public Message postProcessMessage(Message message) throws JMSException {
     message.setLongProperty("UserId", userId);
     return message;
    }
-  });
+  });*/
   return "Published Successfully";
  }
 
