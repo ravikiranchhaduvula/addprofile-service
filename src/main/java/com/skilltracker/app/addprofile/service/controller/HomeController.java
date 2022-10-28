@@ -107,7 +107,6 @@ public class HomeController {
    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
    conn.setRequestMethod("GET");
    conn.connect();
-   System.out.println("Connected...."+conn.getResponseCode());
   } catch(Exception e) {
    e.printStackTrace();
   }
